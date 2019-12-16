@@ -22,7 +22,8 @@
         "url": "https://github.com/freethenation/node-trueskill.git"
     },
     "dependencies": {
-        "free-gaussian": "0.1.0"
+        "free-gaussian": "0.1.0",
+        "lodash": "^4.17.15"
     },
     "devDependencies": {
         "coffee-script": "= 1.3.3"

@@ -1,56 +1,78 @@
-// The output of this program should match the output of the TrueSkill
-// calculator at:
-//
-//   http://atom.research.microsoft.com/trueskill/rankcalculator.aspx
-//
-// (Select game mode "custom", create 4 players each on their own team,
-// check the second "Draw?" box to indicate a tie for second place,
-// then click "Recalculate Skill Level Distribution".  The mu and sigma
-// values in the "after game" section should match what this program
-// prints.
+var _ = require('lodash');
+var trueskill = require('./trueskill');
 
-// The objects we pass to AdjustPlayers can be anything with skill and
-// rank attributes. 
+const scoreToString = p => ({
+  name: p.name,
+  played: p.win + p.lost,
+  win: p.win,
+  lost: p.lost,
+  winPercentage: Math.round((p.win / (p.win + p.lost)) * 100 * 100) / 100,
+  score: p.skill[0] - 3 * p.skill[1],
+  prizeMoney_$: (p.win - p.lost) * 5,
+  mu: p.skill[0],
+  sigm: p.skill[1]
+});
 
-// Create four players.  Assign each of them the default skill.  The
-// player ranking (their "level") is mu-3*sigma, so the default skill
-// value corresponds to a level of 0.
+const getSorted = a => _.sortBy(a.map(scoreToString), ['score']).reverse();
+// const getSorted = a => a.map(scoreToString);
 
-alice = {}
-alice.skill = [25.0, 25.0/3.0]
+const numberOfGames = 267;
+const mu = 25;
+const sigma = 3;
+const initialScore = [mu, mu / sigma];
+const playerNames = ['h.a', 'tx', 'cuong', 'phuc', 'aTuan', 'aThang', 'hoang', 'tu', 'viet'];
 
-bob = {}
-bob.skill = [25.0, 25.0/3.0]
+let players = playerNames.map(p => ({
+  name: p,
+  win: 0,
+  lost: 0,
+  skill: [...initialScore]
+}));
 
-chris = {}
-chris.skill = [25.0, 25.0/3.0]
+const runResult = [];
+for (let run = 0; run < 2; run++) {
+  players = playerNames.map(p => ({
+    name: p,
+    win: 0,
 
-darren = {}
-darren.skill = [25.0, 25.0/3.0]
+    lost: 0,
+    skill: [...initialScore]
+  }));
+  console.log('-------------------------------------');
+  console.log(`run #${run + 1} - ${numberOfGames} samples,mu = ${mu}, sigma = ${sigma}`);
+  for (let index = 0; index < numberOfGames; index++) {
+    const winners = _.sampleSize(players, 2);
+    const others = players.filter(p => winners.filter(x => x.name === p.name).length === 0);
+    const losers = _.sampleSize(others, 2);
+    console.log('-------------------------------------');
+    console.log(
+      `run# ${run + 1} - match #${index + 1} > Winners: ${winners.map(x => x.name).join(',')}, Losers: ${losers
+        .map(x => x.name)
+        .join(',')}`
+    );
 
-// The four players play a game.  Alice wins, Bob and Chris tie for
-// second, Darren comes in last.  The actual numerical values of the
-// ranks don't matter, they could be (1, 2, 2, 4) or (1, 2, 2, 3) or
-// (23, 45, 45, 67).  All that matters is that a smaller rank beats a
-// larger one, and equal ranks indicate draws.
+    winners.forEach(p => {
+      p.rank = 1;
+      p.win = p.win + 1;
+    });
 
-alice.rank = 1
-bob.rank = 2
-chris.rank = 2
-darren.rank = 4
+    losers.forEach(p => {
+      p.rank = 2;
+      p.lost = p.lost + 1;
+    });
 
-// Do the computation to find each player's new skill estimate.
+    trueskill.AdjustPlayers([...winners, ...losers]);
 
-trueskill = require("./trueskill");
-trueskill.AdjustPlayers([alice, bob, chris, darren]);
+    console.log(`run# ${run + 1} - Leaderboard after ${index + 1} matches:`);
+    console.table(getSorted(players));
+  }
+  runResult.push(getSorted(players));
+}
 
-// Print the results.
-
-console.log("alice:");
-console.log(alice.skill);
-console.log("bob:");
-console.log(bob.skill);
-console.log("chris:");
-console.log(chris.skill);
-console.log("darren:");
-console.log(darren.skill);
+console.log('=======================================');
+console.log('all Runs result');
+runResult.forEach((r, i) => {
+  console.log('Run #' + (i + 1));
+  console.table(r);
+});
+console.log('=======================================');
