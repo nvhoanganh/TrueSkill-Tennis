@@ -34,7 +34,6 @@ for (let run = 0; run < 2; run++) {
   players = playerNames.map(p => ({
     name: p,
     win: 0,
-
     lost: 0,
     skill: [...initialScore]
   }));
